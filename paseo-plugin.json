@@ -1,0 +1,7 @@
+{
+  "id": "github-issue-workflow",
+  "description": "Start Paseo workspaces from GitHub issues",
+  "requirements": {
+    "paseo": ">=0.16.0-beta.1"
+  }
+}

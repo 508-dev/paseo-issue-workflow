@@ -10,11 +10,13 @@ Selecting an issue on New workspace switches to a worktree, proposes an `issue-<
 - A Git project in Paseo whose `origin` points to `github.com`. HTTPS and SSH remotes are supported.
 - Optional: set `GITHUB_TOKEN` in the daemon environment to access private repositories and raise GitHub API limits. Public repositories can work without a token.
 
-Install from source on the daemon host:
+During review, install the PR branch on the daemon host:
 
 ```sh
-paseo plugin install git:508-dev/paseo-issue-workflow
+paseo plugin install git:508-dev/paseo-issue-workflow --ref feat/github-issue-workflow
 ```
+
+After PR #1 merges, omit `--ref` to use the default branch. The daemon needs Node and npm on its command path. The manifest installs the locked SDK and validation dependencies, including development dependencies required by the current type-import validator, with lifecycle scripts disabled.
 
 Enable plugins in Paseo's plugin settings if the daemon has them disabled. Plugin code is trusted and runs on the daemon host; review the source before installing it.
 
@@ -29,11 +31,11 @@ Enable plugins in Paseo's plugin settings if the daemon has them disabled. Plugi
 ## Development
 
 ```sh
-npm ci --legacy-peer-deps --ignore-scripts
+npm ci --include=dev --legacy-peer-deps --ignore-scripts
 npm run typecheck
 npm run lint
 npm run format:check
 npm run test
 ```
 
-The lockfile pins development dependencies. The plugin has no runtime npm install step on the daemon.
+The lockfile pins development dependencies. Git installation and updates run the manifest preparation command before Paseo validates and activates the plugin.

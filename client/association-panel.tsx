@@ -5,6 +5,7 @@ import { associationRpc, type Issue } from "../shared/issues";
 
 type Association = {
   issue: Issue | null;
+  branch: string | null;
   pullRequest: { number: number; title: string; url: string; state: string } | null;
   pullRequestError: string | null;
 };
@@ -15,6 +16,8 @@ export function AssociationPanel({ workspaceId, theme, layout }: PluginWorkspace
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
+    setAssociation(null);
+    setError(null);
     void resolve({ workspaceId })
       .then((result) => {
         if (active) setAssociation(result);
@@ -54,7 +57,7 @@ export function AssociationPanel({ workspaceId, theme, layout }: PluginWorkspace
           >
             <Text style={{ color: theme.colors.accent }}>{association.issue.url}</Text>
           </Pressable>
-          <Text style={muted}>Branch: {association.issue.branch}</Text>
+          <Text style={muted}>Branch: {association.branch ?? "Detached HEAD"}</Text>
         </View>
       ) : null}
       {association?.issue ? (

@@ -93,6 +93,7 @@ async function getJson(
   url: string,
   token: string | undefined,
   fetcher: typeof fetch,
+  allowMissing = false,
 ): Promise<unknown> {
   const response = await fetcher(url, {
     headers: {
@@ -101,6 +102,7 @@ async function getJson(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+  if (response.status === 404 && allowMissing) return null;
   if (!response.ok) {
     if (response.status === 403)
       throw new Error("GitHub API rate limit or access denied; set GITHUB_TOKEN on the daemon");
@@ -145,7 +147,13 @@ export async function searchRepositoryIssues(
   const root = `https://api.github.com/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}`;
   let payload: unknown;
   if (directNumber) {
-    payload = [await getJson(`${root}/issues/${directNumber[1]}`, token, fetcher)];
+    const issue = await getJson(`${root}/issues/${directNumber[1]}`, token, fetcher, true);
+    if (issue === null) {
+      // Distinguish a missing issue from an inaccessible repository.
+      await getJson(root, token, fetcher);
+      return [];
+    }
+    payload = [issue];
   } else if (trimmed) {
     const q = `repo:${repo.owner}/${repo.repo} is:issue state:open ${trimmed}`;
     const result = await getJson(
@@ -164,12 +172,7 @@ export async function searchRepositoryIssues(
     .filter((item): item is Issue => item !== null);
 }
 
-export async function findPullRequest(
-  issue: Issue,
-  workspaceDirectory: string,
-  token = process.env.GITHUB_TOKEN,
-  fetcher: typeof fetch = fetch,
-): Promise<{ number: number; title: string; url: string; state: string } | null> {
+export async function readWorkspaceBranch(workspaceDirectory: string): Promise<string | null> {
   let stdout: string;
   try {
     ({ stdout } = await run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], {
@@ -179,8 +182,15 @@ export async function findPullRequest(
   } catch {
     return null;
   }
-  const branch = stdout.trim();
-  if (!branch) return null;
+  return stdout.trim() || null;
+}
+
+export async function findPullRequest(
+  issue: Issue,
+  branch: string,
+  token = process.env.GITHUB_TOKEN,
+  fetcher: typeof fetch = fetch,
+): Promise<{ number: number; title: string; url: string; state: string } | null> {
   const url = `https://api.github.com/repos/${encodeURIComponent(issue.owner)}/${encodeURIComponent(issue.repo)}/pulls?state=all&head=${encodeURIComponent(`${issue.owner}:${branch}`)}&per_page=10`;
   const result = z.array(apiPullSchema).parse(await getJson(url, token, fetcher));
   const match = result[0];

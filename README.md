@@ -13,10 +13,10 @@ Selecting an issue on New workspace switches to a worktree, proposes an `issue-<
 During review, install the PR branch on the daemon host:
 
 ```sh
-paseo plugin install git:508-dev/paseo-issue-workflow --ref feat/github-issue-workflow
+paseo plugin install git:508-dev/paseo-issue-workflow
 ```
 
-After PR #1 merges, omit `--ref` to use the default branch. The daemon needs Node and npm on its command path. The manifest installs the locked SDK and validation dependencies, including development dependencies required by the current type-import validator, with lifecycle scripts disabled.
+The daemon needs Node and npm on its command path. The manifest installs the locked SDK and validation dependencies, including development dependencies required by the current type-import validator, with lifecycle scripts disabled.
 
 Enable plugins in Paseo's plugin settings if the daemon has them disabled. Plugin code is trusted and runs on the daemon host; review the source before installing it.
 

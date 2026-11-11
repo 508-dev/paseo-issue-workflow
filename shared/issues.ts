@@ -41,6 +41,7 @@ export const associationRpc = defineRpc({
   input: z.object({ workspaceId: z.string() }),
   output: z.object({
     issue: issueSchema.nullable(),
+    branch: z.string().nullable(),
     pullRequest: z
       .object({
         number: z.number().int().positive(),

@@ -4,6 +4,7 @@ import {
   findPullRequest,
   issuePrompt,
   projectRepositories,
+  readWorkspaceBranch,
   searchRepositoryIssues,
 } from "./server/github";
 
@@ -23,18 +24,23 @@ export default function contribute(server: PluginServerContext) {
   server.handle(associationRpc, async ({ workspaceId }, { paseo }) => {
     const workspace = await paseo.workspaces.ref(workspaceId).refresh();
     const parsed = issueSchema.safeParse(workspace?.metadata?.[ISSUE_METADATA_KEY]);
-    if (!parsed.success) return { issue: null, pullRequest: null, pullRequestError: null };
+    if (!parsed.success)
+      return { issue: null, branch: null, pullRequest: null, pullRequestError: null };
     const issue = parsed.data;
-    if (!workspace?.workspaceDirectory) return { issue, pullRequest: null, pullRequestError: null };
+    if (!workspace?.workspaceDirectory)
+      return { issue, branch: null, pullRequest: null, pullRequestError: null };
+    const branch = await readWorkspaceBranch(workspace.workspaceDirectory);
     try {
       return {
         issue,
-        pullRequest: await findPullRequest(issue, workspace.workspaceDirectory),
+        branch,
+        pullRequest: branch ? await findPullRequest(issue, branch) : null,
         pullRequestError: null,
       };
     } catch (error) {
       return {
         issue,
+        branch,
         pullRequest: null,
         pullRequestError: error instanceof Error ? error.message : "Pull request lookup failed",
       };

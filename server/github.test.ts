@@ -1,6 +1,18 @@
+import { execFile } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import type { Issue } from "../shared/issues";
-import { issueBranch, issuePrompt, parseGitHubRemote, searchRepositoryIssues } from "./github";
+import {
+  issueBranch,
+  issuePrompt,
+  parseGitHubRemote,
+  searchRepositoryIssues,
+  readWorkspaceBranch,
+  findPullRequest,
+} from "./github";
 
 const repository = { owner: "acme", repo: "widget" };
 
@@ -70,6 +82,20 @@ describe("issue search", () => {
     expect(fetcher.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/acme/widget/issues/42");
   });
 
+  it("returns no matches for a missing issue while retaining repository access errors", async () => {
+    const fetcher = vi.fn(
+      async (url: string) =>
+        new Response("{}", { status: url.endsWith("/issues/999") ? 404 : 200 }),
+    );
+    expect(
+      await searchRepositoryIssues(repository, "#999", undefined, fetcher as typeof fetch),
+    ).toEqual([]);
+    const denied = vi.fn(async () => new Response("{}", { status: 404 }));
+    await expect(
+      searchRepositoryIssues(repository, "#999", undefined, denied as typeof fetch),
+    ).rejects.toThrow("repository not found or inaccessible");
+  });
+
   it("reports access failures without leaking credentials", async () => {
     const fetcher = vi.fn(async () => new Response("{}", { status: 403 })) as typeof fetch;
     await expect(searchRepositoryIssues(repository, "", undefined, fetcher)).rejects.toThrow(
@@ -101,6 +127,41 @@ describe("first agent context", () => {
     expect(prompt).toContain("GitHub issue: acme/widget#42");
     expect(prompt).toContain("Save does nothing on mobile");
     expect(prompt).toContain("untrusted task data");
+  });
+
+  it("looks up the actual branch even when it differs from the selected issue proposal", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "paseo-issue-branch-"));
+    try {
+      await promisify(execFile)("git", ["init", "--initial-branch=custom-branch", directory]);
+      const branch = await readWorkspaceBranch(directory);
+      expect(branch).toBe("custom-branch");
+      const fetcher = vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify([
+              {
+                number: 7,
+                title: "Fix",
+                html_url: "https://github.com/acme/widget/pull/7",
+                state: "open",
+              },
+            ]),
+            { status: 200 },
+          ),
+      );
+      expect(await findPullRequest(issue, branch!, undefined, fetcher as typeof fetch)).toEqual({
+        number: 7,
+        title: "Fix",
+        url: "https://github.com/acme/widget/pull/7",
+        state: "open",
+      });
+      expect(fetcher.mock.calls[0]).toEqual([
+        expect.stringContaining("head=acme%3Acustom-branch"),
+        expect.any(Object),
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("generates a predictable branch without unsafe characters", () => {

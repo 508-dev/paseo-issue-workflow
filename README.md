@@ -1,5 +1,7 @@
 # Paseo GitHub issue workflow
 
+Development continues in [508-dev/paseo-plugins](https://github.com/508-dev/paseo-plugins/tree/main/plugins/issue-workflow). This repository remains installable for existing sources. Read the [migration guide](https://github.com/508-dev/paseo-plugins/blob/main/docs/migration.md) before switching an existing installation.
+
 Start a Paseo workspace from a GitHub issue. The plugin adds a searchable **GitHub issue** field to New workspace, an **Attach GitHub issue** composer source, and a workspace panel that shows the selected issue and a pull request for its branch.
 
 Selecting an issue on New workspace switches to a worktree, proposes an `issue-<number>-<title>` branch, and stores an issue snapshot on the workspace. When you submit the native New workspace form, the plugin adds the issue title, URL, and description to the first agent's prompt. Paseo creates the workspace and agent through its normal flow. The workspace panel is available from Command Center as **Open GitHub issue**.
